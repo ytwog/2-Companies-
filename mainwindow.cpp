@@ -353,40 +353,29 @@ void MainWindow::saveBin()
     }
     deleteRepeated(first, &end, NRows);
     FILE *fout = fopen("Firms.dat", "wb");
-    Node *tmp = first;
-    string temp = "";
     if(fout)
     {
+        Node *tmp = first;
+        while(tmp)
+        {
+            string _name = tmp->Getname();
+            int temp_length = _name.length();
+            int _budget = tmp->Getbudget();
+            int _members = tmp->Getmembers();
 
-        temp += ";\"";
-        for(int col = 0; col < 4; col++)
-        {
-            temp += (ui->tableView->model()->headerData(col, Qt::Horizontal).toString()).toStdString();
-            if(col + 1 == 4)
-            {
-                temp += "\";\n\"";
-            }
-            else
-            {
-                temp += "\";\"";
-            }
+            fwrite(&temp_length, sizeof(int), 1, fout);
+            fwrite(_name.c_str(), sizeof(char), temp_length + 1, fout);
+            fwrite(&_budget, sizeof(int), 1, fout);
+            fwrite(&_members, sizeof(int), 1, fout);
+            string _tax = tmp->Gettax();
+            temp_length = _tax.length();
+            fwrite(&temp_length, sizeof(int), 1, fout);
+            fwrite(_tax.c_str(), sizeof(char), temp_length + 1, fout);
+            //fwrite(tmp, sizeof(Node), 1, fout);
+            tmp = tmp->next;
         }
-        for( int row = 0; row < ui->tableView->verticalHeader()->count(); row++)
-        {
-            temp += ui->tableView->model()->headerData(row, Qt::Vertical).toString().toStdString();
-            temp += "\";\"";
-            for( int col = 0; col < ui->tableView->horizontalHeader()->count(); col++)
-            {
-                temp += ui->tableView->model()->data(ui->tableView->model()->index(row, col)).toString().toStdString();
-                temp += "\";\"";
-            }
-            temp += "\"\n\"";
-        }
-        temp += "\"";
-        for(int i = 0; i < temp.length(); i++)
-        {
-            fwrite(&temp[i], sizeof(char), 1, fout);
-        }
+        int Stop = 0;
+        fwrite(&Stop, sizeof(int), 1, fout);
     }
     else
     {
@@ -400,7 +389,36 @@ void MainWindow::saveBin()
 void MainWindow::on_saveBin_clicked()
 {
     short Err = Readfile(&first, &end, NRows, 1, "Firms.dat");
-    ui->richText->setText(QString::fromStdString(first->Getname()));
+    FILE *fin = fopen("Firms.dat", "rb");
+    bool Stop = false;
+    while(!feof(fin) && !Stop)
+    {
+        int temp_length = 0;
+        fread(&temp_length, sizeof(int), 1, fin);
+        if(temp_length == 0)
+        {
+            Stop = true;
+            continue;
+        }
+        //Read length
+        char *arr_name = new char[temp_length + 1];
+        //Read that long c_string
+        fread(arr_name, sizeof(char), temp_length + 1, fin);
+        //Read two ints
+        int _budget;
+        fread(&_budget, sizeof(int), 1, fin);
+        int _members;
+        fread(&_members, sizeof(int), 1, fin);
+        temp_length = 0;
+        fread(&temp_length, sizeof(int), 1, fin);
+        char *arr_tax = new char[temp_length + 1];
+        //Read that long c_string
+        fread(arr_tax, sizeof(char), temp_length + 1, fin);
+        NRows++;
+        add(&first, end, &end, string(arr_name), _budget, _members, string(arr_tax));
+        delete[] arr_name;
+        delete[] arr_tax;
+    }
     if(Err == 1)
     {
         ui->ErrorText->setText("Файл не\nудалось открыть");
